@@ -1,45 +1,39 @@
 package Packageclient;
 
 import java.io.*;
-import java.net.Socket;
+import java.net.*;
 import java.util.Scanner;
+import shared.Operation;
 
 public class Client {
     public static void main(String[] args) {
-        final String HOST = "localhost";
-        final int PORT = 1900;
+        try (Socket socket = new Socket("0.0.0.0", 1900)) {
+            System.out.println(" Connecté au serveur sur localhost:1900");
 
-        try (Socket socket = new Socket(HOST, PORT);
-             BufferedReader in = new BufferedReader(new InputStreamReader(socket.getInputStream()));
-             PrintWriter out = new PrintWriter(new OutputStreamWriter(socket.getOutputStream()), true);
-             Scanner sc = new Scanner(System.in)) {
+            // ⚠️ Même ordre que le serveur : OutputStream puis InputStream
+            ObjectOutputStream oos = new ObjectOutputStream(socket.getOutputStream());
+            ObjectInputStream ois = new ObjectInputStream(socket.getInputStream());
 
-            System.out.println("Connecté au serveur " + HOST + ":" + PORT);
+            Scanner sc = new Scanner(System.in);
+            System.out.print("Entrez le premier nombre : ");
+            double a = sc.nextDouble();
+            System.out.print("Entrez l’opérateur (+, -, *, /) : ");
+            char op = sc.next().charAt(0);
+            System.out.print("Entrez le deuxième nombre : ");
+            double b = sc.nextDouble();
 
-            // Option A: on lit toute l'opération sur une ligne
-            System.out.print("Entrez une opération (ex: 55 * 25) : ");
-            String operation = sc.nextLine().trim();
+            // Envoi de l’objet
+            Operation operation = new Operation(a, op, b);
+            oos.writeObject(operation);
+            oos.flush();
 
-            // Validation côté client (empêche d'envoyer des chaînes manifestement invalides)
-            String regex = "\\s*-?\\d+\\s*[+\\-*/]\\s*-?\\d+\\s*";
-            if (!operation.matches(regex)) {
-                System.out.println("Syntaxe invalide côté client. Format attendu : <entier> <op> <entier>");
-                return;
-            }
+            // Lecture du résultat
+            double resultat = ois.readDouble();
+            System.out.println(" Résultat reçu du serveur : " + resultat);
 
-            // Envoi de l'opération au serveur
-            out.println(operation);
-
-            // Lire la réponse du serveur
-            String response = in.readLine();
-            if (response == null) {
-                System.out.println("Aucune réponse du serveur.");
-            } else {
-                System.out.println("Réponse du serveur : " + response);
-            }
-
-        } catch (IOException e) {
-            System.err.println("Erreur socket : " + e.getMessage());
+            sc.close();
+        } catch (Exception e) {
+            e.printStackTrace();
         }
     }
 }
